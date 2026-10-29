@@ -860,161 +860,11 @@
 
     <view name="accounting-portal.cloud.all" xmlns:date="http://exslt.org/dates-and-times">
 
-        <variable name="start_month" eval="date:month-in-year(date:add(date:date(),'-P14M'))"/>
-        <variable name="start_year" eval="date:year(date:add(date:date(),'-P14M'))"/>
-        <variable name="end_month" eval="date:month-in-year(date:date())"/>
-        <variable name="end_year" eval="date:year(date:date())"/>
-
-
-        <connector type="HTTPConnector">
-            <parameter name="url" eval="concat(property('accportal.baseurl'),'cloud/sum_elap_processors/SITE/DATE/',$start_year,'/',$start_month,'/',$end_year,'/',$end_month,'/egi/onlyinfrajobs/JSON')"/>
-        </connector>
-        <serializer type="JSONStreamSerializer"></serializer>
-
-        <processors>
-            <element in="item" out="results">
-                <element in="object" out="site" if="id/text()!='Total' and id/text()!='Percent' and id/text()!='xlegend' and id/text()!='ylegend' and id/text()!='var'">
-                    <attribute-create out="name">../id/text()</attribute-create>
-                    <element out="date" if="starts-with(name(),'_')">
-                        <attribute-create out="month">substring-after(name(..),'_')</attribute-create>
-                        <attribute-create out="type">'full'</attribute-create>
-                    </element>
-                    <element-ignore/>
-                </element>
-                <element-ignore/>
-            </element>
-        </processors>
-
-    </view>
-
-    <view name="accounting-portal.cloud.excluded" xmlns:date="http://exslt.org/dates-and-times">
-
-        <variable name="start_month" eval="date:month-in-year(date:add(date:date(),'-P14M'))"/>
-        <variable name="start_year" eval="date:year(date:add(date:date(),'-P14M'))"/>
-        <variable name="end_month" eval="date:month-in-year(date:date())"/>
-        <variable name="end_year" eval="date:year(date:date())"/>
-
-
-        <connector type="HTTPConnector">
-            <parameter name="url" eval="concat(property('accportal.baseurl'),'cloud/sum_elap_processors/SITE/DATE/',$start_year,'/',$start_month,'/',$end_year,'/',$end_month,'/custom-dteam,fedcloud.egi.eu,ops/onlyinfrajobs/JSON')"/>
-        </connector>
-        <serializer type="JSONStreamSerializer"></serializer>
-
-        <processors>
-            <element in="item" out="results">
-                <element in="object" out="site" if="id/text()!='Total' and id/text()!='Percent' and id/text()!='xlegend' and id/text()!='ylegend' and id/text()!='var'">
-                    <attribute-create out="name">../id/text()</attribute-create>
-                    <element out="date" if="starts-with(name(),'_')">
-                        <attribute-create out="month">substring-after(name(..),'_')</attribute-create>
-                        <attribute-create out="type">'excluded'</attribute-create>
-                    </element>
-                    <element-ignore/>
-                </element>
-                <element-ignore/>
-            </element>
-
-            <element in="results">
-                <element in="site">
-                    <element in="date" if="text()='null'"><text>0</text></element>
-                </element>
-            </element>
-        </processors>
-
-    </view>
-
-    <view name="accounting-portal.cloud.computed" xmlns:e="http://software.in2p3.fr/lavoisier/entries.xsd">
-        <connector type="XMLConnector">
-            <parameter name="content" eval="view('accounting-portal.cloud.all')"></parameter>
-        </connector>
-
-        <processors>
-            <element in="results">
-                <element-create>view('accounting-portal.cloud.excluded')/results/*</element-create>
-            </element>
-
-            <element in="results">
-
-                <element-ignore in="site"/>
-                <element-create>sort_by_string(../site,'@name')</element-create>
-            </element>
-
-            <element in="results">
-                <element-create-as-parent out="site" group-by="@name" attributes="@name">
-                    <element-ignore in="site">
-                        <element/>
-                    </element-ignore>
-                </element-create-as-parent>
-            </element>
-
-            <element in="results">
-                <element in="site">
-
-                    <element-ignore in="date"/>
-                    <element-create>sort_by_string(../date,'@month')</element-create>
-                </element>
-            </element>
-
-
-            <element in="results">
-                <element in="site">
-                    <element-create-as-parent out="result" group-by="@month" attributes="@month">
-                        <element in="date"/>
-                    </element-create-as-parent>
-                </element>
-            </element>
-
-            <element in="results">
-                <element in="site">
-                    <element in="result">
-                        <attribute-create out="diff">../date[@type='full'] - ../date[@type='excluded']</attribute-create>
-                        <element-ignore/>
-                    </element>
-                </element>
-            </element>
-
-            <element in="results" out="e:entries">
-                <attribute in="name" out="key"/>
-                <element in="site" out="e:entries">
-                    <element in="result" out="e:entry">
-                        <attribute in="month" out="key"/>
-                        <attribute-ignore/>
-                        <text-create>../@diff</text-create>
-                    </element>
-                </element>
-            </element>
-
-        </processors>
-
-        <cache type="FileCache">
-            <trigger type="DeltaTimeTrigger">
-                <parameter name="minutes">12</parameter>
-            </trigger>
-            <trigger type="ViewNotifiedTrigger"/>
-        </cache>
-
-        <renderers>
-            <renderer type="DefaultRenderer">
-                <parameter name="contentType">text/xml</parameter>
-            </renderer>
-        </renderers>
-    </view>
-
-
-    <!-- ============================================================== -->
-    <!-- SHADOW COPIES — nothing reads these. Build both, diff both     -->
-    <!-- against tools/check-v2.py, keep the one that matches.          -->
-    <!--   .v2 reads the payload as CSV                                 -->
-    <!--   .v3 reads the same payload as JSON                           -->
-    <!-- ============================================================== -->
-    <view name="accounting-portal.cloud.all.v2" xmlns:date="http://exslt.org/dates-and-times" xmlns:t="http://software.in2p3.fr/lavoisier/tables.xsd">
-
-        <!-- window: 15 months, current month included -->
         <variable name="start_year"  eval="date:year(date:add(date:date(),'-P14M'))"/>
         <variable name="start_month" eval="date:month-in-year(date:add(date:date(),'-P14M'))"/>
         <variable name="end_year"    eval="date:year(date:add(date:date(),'P1M'))"/>
         <variable name="end_month"   eval="date:month-in-year(date:add(date:date(),'P1M'))"/>
 
-        <!-- zero-padded, because InfluxQL will not parse '2025-8-01' -->
         <variable name="start" eval="concat($start_year,'-',substring(concat('0',$start_month),string-length($start_month)),'-01')"/>
         <variable name="end"   eval="concat($end_year,'-',substring(concat('0',$end_month),string-length($end_month)),'-01')"/>
 
@@ -1030,56 +880,23 @@
                 '+GROUP+BY+time(1d),site,country)',
                 '+GROUP+BY+time(1d),site+fill(none)')"/>
             <parameter name="header">
-                <entry key="Accept">application/csv</entry>
+                <entry key="Accept">application/json</entry>
             </parameter>
         </connector>
 
-        <!-- header=true: the first CSV row is the header, so columns are
-             labelled name/tags/time/max instead of 1/2/3/4.
-             strict=false: InfluxDB may emit a short error row. -->
-        <serializer type="CSVSerializer">
-            <parameter name="header">true</parameter>
-            <parameter name="strict">false</parameter>
-        </serializer>
+        <serializer type="JSONStreamSerializer"/>
 
         <processors>
-
-            <!-- 1. one CSV row -> @name, @month, @value -->
-            <elements path="t:tables/t:table/t:row">
-                <attribute-create out="name">substring-after(t:column[@label='tags'],'site=')</attribute-create>
-                <attribute-create out="month">substring(timestamp-to-date(t:column[@label='time']),1,7)</attribute-create>
-                <attribute-create out="value">t:column[@label='max']/text()</attribute-create>
-            </elements>
-
-            <!-- 2. each row becomes a <site> holding one <date> -->
-            <element in="t:tables/t:table">
-                <element in="t:row" out="site">
-                    <element-create out="date">
-                        <attribute-create out="month">../@month</attribute-create>
+            <element in="results" out="results">
+                <element in="series" out="site">
+                    <attribute-create out="name">tags/site/text()</attribute-create>
+                    <element in="values" out="date">
+                        <attribute-create out="month">substring(timestamp-to-date(*[1]),1,7)</attribute-create>
                         <attribute-create out="type">'full'</attribute-create>
-                        <text-create>../@value</text-create>
-                    </element-create>
-                    <element-ignore/>
+                        <text-create>*[2]</text-create>
+                    </element>
                 </element>
             </element>
-
-            <!-- 3. merge the <site> elements that share @name.
-                 Same idiom as accounting-portal.cloud.computed. -->
-            <element in="t:tables/t:table">
-                <element-create-as-parent out="site" group-by="@name" attributes="@name">
-                    <element-ignore in="site">
-                        <element/>
-                    </element-ignore>
-                </element-create-as-parent>
-            </element>
-
-            <!-- 4. the root must be <results> for the computed view -->
-            <element in="t:tables" out="results">
-                <element-ignore in="t:table">
-                    <element/>
-                </element-ignore>
-            </element>
-
         </processors>
 
         <cache type="FileCache">
@@ -1096,7 +913,7 @@
         </renderers>
     </view>
 
-    <view name="accounting-portal.cloud.excluded.v2" xmlns:date="http://exslt.org/dates-and-times" xmlns:t="http://software.in2p3.fr/lavoisier/tables.xsd">
+    <view name="accounting-portal.cloud.excluded" xmlns:date="http://exslt.org/dates-and-times">
 
         <variable name="start_year"  eval="date:year(date:add(date:date(),'-P14M'))"/>
         <variable name="start_month" eval="date:month-in-year(date:add(date:date(),'-P14M'))"/>
@@ -1119,48 +936,23 @@
                 '+GROUP+BY+time(1d),site,country)',
                 '+GROUP+BY+time(1d),site+fill(none)')"/>
             <parameter name="header">
-                <entry key="Accept">application/csv</entry>
+                <entry key="Accept">application/json</entry>
             </parameter>
         </connector>
 
-        <serializer type="CSVSerializer">
-            <parameter name="header">true</parameter>
-            <parameter name="strict">false</parameter>
-        </serializer>
+        <serializer type="JSONStreamSerializer"/>
 
         <processors>
-
-            <elements path="t:tables/t:table/t:row">
-                <attribute-create out="name">substring-after(t:column[@label='tags'],'site=')</attribute-create>
-                <attribute-create out="month">substring(timestamp-to-date(t:column[@label='time']),1,7)</attribute-create>
-                <attribute-create out="value">t:column[@label='max']/text()</attribute-create>
-            </elements>
-
-            <element in="t:tables/t:table">
-                <element in="t:row" out="site">
-                    <element-create out="date">
-                        <attribute-create out="month">../@month</attribute-create>
+            <element in="results" out="results">
+                <element in="series" out="site">
+                    <attribute-create out="name">tags/site/text()</attribute-create>
+                    <element in="values" out="date">
+                        <attribute-create out="month">substring(timestamp-to-date(*[1]),1,7)</attribute-create>
                         <attribute-create out="type">'excluded'</attribute-create>
-                        <text-create>../@value</text-create>
-                    </element-create>
-                    <element-ignore/>
+                        <text-create>*[2]</text-create>
+                    </element>
                 </element>
             </element>
-
-            <element in="t:tables/t:table">
-                <element-create-as-parent out="site" group-by="@name" attributes="@name">
-                    <element-ignore in="site">
-                        <element/>
-                    </element-ignore>
-                </element-create-as-parent>
-            </element>
-
-            <element in="t:tables" out="results">
-                <element-ignore in="t:table">
-                    <element/>
-                </element-ignore>
-            </element>
-
         </processors>
 
         <cache type="FileCache">
@@ -1177,7 +969,7 @@
         </renderers>
     </view>
 
-    <view name="accounting-portal.cloud.computed.v2" xmlns:e="http://software.in2p3.fr/lavoisier/entries.xsd">
+    <view name="accounting-portal.cloud.computed" xmlns:e="http://software.in2p3.fr/lavoisier/entries.xsd">
         <connector type="XMLConnector">
             <parameter name="content" eval="view('accounting-portal.cloud.all')"></parameter>
         </connector>
@@ -1257,116 +1049,6 @@
         </renderers>
     </view>
 
-    <view name="accounting-portal.cloud.all.v3" xmlns:date="http://exslt.org/dates-and-times">
-
-        <variable name="start_year"  eval="date:year(date:add(date:date(),'-P14M'))"/>
-        <variable name="start_month" eval="date:month-in-year(date:add(date:date(),'-P14M'))"/>
-        <variable name="end_year"    eval="date:year(date:add(date:date(),'P1M'))"/>
-        <variable name="end_month"   eval="date:month-in-year(date:add(date:date(),'P1M'))"/>
-
-        <variable name="start" eval="concat($start_year,'-',substring(concat('0',$start_month),string-length($start_month)),'-01')"/>
-        <variable name="end"   eval="concat($end_year,'-',substring(concat('0',$end_month),string-length($end_month)),'-01')"/>
-
-        <connector type="HTTPConnector">
-            <parameter name="url" eval="concat(
-                property('accportal.baseurl'),
-                'ui/api/datasources/proxy/uid/', property('accportal.datasource.uid'),
-                '/query?db=', property('accportal.db'),
-                '&amp;epoch=s&amp;q=SELECT+max(s)+FROM+(SELECT+sum(raw_wc_time)+AS+s+FROM+summary',
-                &quot;+WHERE+infra='Cloud'&quot;,
-                &quot;+AND+time>='&quot;,$start,&quot;'&quot;,
-                &quot;+AND+time&lt;'&quot;,$end,&quot;'&quot;,
-                '+GROUP+BY+time(1d),site,country)',
-                '+GROUP+BY+time(1d),site+fill(none)')"/>
-            <parameter name="header">
-                <entry key="Accept">application/json</entry>
-            </parameter>
-        </connector>
-
-        <serializer type="JSONStreamSerializer"/>
-
-        <processors>
-            <element in="results" out="results">
-                <element in="series" out="site">
-                    <attribute-create out="name">tags/site/text()</attribute-create>
-                    <element in="values" out="date">
-                        <attribute-create out="month">substring(timestamp-to-date(*[1]),1,7)</attribute-create>
-                        <attribute-create out="type">'full'</attribute-create>
-                        <text-create>*[2]</text-create>
-                    </element>
-                </element>
-            </element>
-        </processors>
-
-        <cache type="FileCache">
-            <trigger type="DeltaTimeTrigger">
-                <parameter name="minutes">12</parameter>
-            </trigger>
-            <trigger type="ViewNotifiedTrigger"/>
-        </cache>
-
-        <renderers>
-            <renderer type="DefaultRenderer">
-                <parameter name="contentType">text/xml</parameter>
-            </renderer>
-        </renderers>
-    </view>
-
-    <view name="accounting-portal.cloud.excluded.v3" xmlns:date="http://exslt.org/dates-and-times">
-
-        <variable name="start_year"  eval="date:year(date:add(date:date(),'-P14M'))"/>
-        <variable name="start_month" eval="date:month-in-year(date:add(date:date(),'-P14M'))"/>
-        <variable name="end_year"    eval="date:year(date:add(date:date(),'P1M'))"/>
-        <variable name="end_month"   eval="date:month-in-year(date:add(date:date(),'P1M'))"/>
-
-        <variable name="start" eval="concat($start_year,'-',substring(concat('0',$start_month),string-length($start_month)),'-01')"/>
-        <variable name="end"   eval="concat($end_year,'-',substring(concat('0',$end_month),string-length($end_month)),'-01')"/>
-
-        <connector type="HTTPConnector">
-            <parameter name="url" eval="concat(
-                property('accportal.baseurl'),
-                'ui/api/datasources/proxy/uid/', property('accportal.datasource.uid'),
-                '/query?db=', property('accportal.db'),
-                '&amp;epoch=s&amp;q=SELECT+max(s)+FROM+(SELECT+sum(raw_wc_time)+AS+s+FROM+summary',
-                &quot;+WHERE+infra='Cloud'&quot;,
-                '+AND+vo=~/^(dteam|fedcloud\.egi\.eu|ops)$/',
-                &quot;+AND+time>='&quot;,$start,&quot;'&quot;,
-                &quot;+AND+time&lt;'&quot;,$end,&quot;'&quot;,
-                '+GROUP+BY+time(1d),site,country)',
-                '+GROUP+BY+time(1d),site+fill(none)')"/>
-            <parameter name="header">
-                <entry key="Accept">application/json</entry>
-            </parameter>
-        </connector>
-
-        <serializer type="JSONStreamSerializer"/>
-
-        <processors>
-            <element in="results" out="results">
-                <element in="series" out="site">
-                    <attribute-create out="name">tags/site/text()</attribute-create>
-                    <element in="values" out="date">
-                        <attribute-create out="month">substring(timestamp-to-date(*[1]),1,7)</attribute-create>
-                        <attribute-create out="type">'excluded'</attribute-create>
-                        <text-create>*[2]</text-create>
-                    </element>
-                </element>
-            </element>
-        </processors>
-
-        <cache type="FileCache">
-            <trigger type="DeltaTimeTrigger">
-                <parameter name="minutes">12</parameter>
-            </trigger>
-            <trigger type="ViewNotifiedTrigger"/>
-        </cache>
-
-        <renderers>
-            <renderer type="DefaultRenderer">
-                <parameter name="contentType">text/xml</parameter>
-            </renderer>
-        </renderers>
-    </view>
 
     <view name="cloud_reports" xmlns:date="http://exslt.org/dates-and-times" xmlns:e="http://software.in2p3.fr/lavoisier/entries.xsd">
         <variable name="end_date" eval="substring(date:date(),0,11)"/>
