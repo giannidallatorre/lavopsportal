@@ -877,6 +877,7 @@
                 '/query?db=', property('accportal.db'),
                 '&amp;epoch=s&amp;q=SELECT+max(s)+FROM+(SELECT+sum(raw_wc_time)+AS+s+FROM+summary',
                 &quot;+WHERE+infra='Cloud'&quot;,
+                '+AND+vo=~/',property('accportal.vo.filter'),'/'
                 &quot;+AND+time>='&quot;,$start,&quot;'&quot;,
                 &quot;+AND+time&lt;'&quot;,$end,&quot;'&quot;,
                 '+GROUP+BY+time(1d),site,country)',
@@ -965,6 +966,7 @@
                 '/query?db=', property('accportal.db'),
                 '&amp;epoch=s&amp;q=SELECT+max(s)+FROM+(SELECT+sum(raw_wc_time)+AS+s+FROM+summary',
                 &quot;+WHERE+infra='Cloud'&quot;,
+                '+AND+vo=~/',property('accportal.vo.filter'),'/'
                 '+AND+vo=~/^(dteam|fedcloud\.egi\.eu|ops)$/',
                 &quot;+AND+time>='&quot;,$start,&quot;'&quot;,
                 &quot;+AND+time&lt;'&quot;,$end,&quot;'&quot;,
